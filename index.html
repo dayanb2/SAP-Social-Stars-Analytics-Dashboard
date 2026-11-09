@@ -1,0 +1,2049 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SAP Social Stars — Content Analytics</title>
+
+  <style>
+    /* ─── Reset & base ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      /* SAP brand — light purple theme */
+      --sap-blue:       #7B5EA7;
+      --sap-blue-dark:  #5E4282;
+      --sap-blue-light: #F0EBF8;
+
+      /* Neutrals */
+      --surface:        #FFFFFF;
+      --surface-alt:    #F5F7FA;
+      --border:         #E0E5EF;
+      --text-primary:   #1A2332;
+      --text-secondary: #4B5A6E;
+      --text-muted:     #8896A8;
+
+      /* Metric accent colors (categorical — fixed order, CVD-safe) */
+      --c-impressions:  #7B5EA7;
+      --c-reach:        #D95F02;
+      --c-engagement:   #1B9E77;
+      --c-clicks:       #E7298A;
+
+      /* Status badge colors */
+      --status-good:    #1B9E77;
+      --status-warn:    #D95F02;
+      --status-neutral: #8896A8;
+      --status-orange:  #E07B39;
+      --status-yellow:  #D4A017;
+
+      /* Spacing scale */
+      --space-xs: 4px;
+      --space-s:  8px;
+      --space-m:  16px;
+      --space-l:  24px;
+      --space-xl: 40px;
+
+      --font: "Segoe UI", system-ui, -apple-system, sans-serif;
+      --radius: 8px;
+      --shadow-card: 0 1px 4px rgba(0,0,0,.08), 0 4px 12px rgba(0,0,0,.06);
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--surface-alt);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    /* ─── Header ────────────────────────────────────────────────── */
+    .header {
+      background: var(--sap-blue);
+      color: #fff;
+      padding: var(--space-m) var(--space-xl);
+      display: flex;
+      align-items: center;
+      gap: var(--space-m);
+      box-shadow: 0 2px 8px rgba(123,94,167,.30);
+    }
+
+    .header__logo {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      height: 44px;
+      background: #fff;
+      border-radius: 6px;
+      flex-shrink: 0;
+    }
+
+    .header__logo svg { display: block; }
+    .header__titles { flex: 1; }
+
+    .header__title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: -.01em;
+      line-height: 1.2;
+    }
+
+    .header__subtitle {
+      font-size: .8rem;
+      opacity: .82;
+      margin-top: 2px;
+      font-weight: 400;
+    }
+
+    .header__badge {
+      font-size: .72rem;
+      font-weight: 600;
+      background: rgba(255,255,255,.18);
+      border: 1px solid rgba(255,255,255,.35);
+      padding: 3px 10px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+
+    /* ─── View toggle bar ───────────────────────────────────────── */
+    .view-toggle {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 var(--space-xl);
+      display: flex;
+      gap: var(--space-s);
+      align-items: center;
+    }
+
+    .view-btn {
+      padding: 12px var(--space-m);
+      font-family: var(--font);
+      font-size: .875rem;
+      font-weight: 600;
+      border: none;
+      background: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -1px;
+      transition: color .15s, border-color .15s;
+    }
+
+    .view-btn:hover { color: var(--sap-blue); }
+
+    .view-btn.active {
+      color: var(--sap-blue);
+      border-bottom-color: var(--sap-blue);
+    }
+
+    /* ─── Page shell ────────────────────────────────────────────── */
+    .page {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: var(--space-l) var(--space-m);
+    }
+
+    .view-section { display: none; }
+    .view-section.active { display: block; }
+
+    /* ─── Summary KPI row ───────────────────────────────────────── */
+    /*
+      Each stat tile shows a single headline number.
+      Colored left border encodes which metric it belongs to,
+      matching the table column headers — color follows the entity.
+    */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: var(--space-m);
+      margin-bottom: var(--space-l);
+    }
+
+    .kpi-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-card);
+      padding: var(--space-m) var(--space-l);
+      border-left: 4px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xs);
+    }
+
+    .kpi-card--impressions { border-left-color: var(--c-impressions); }
+    .kpi-card--engagement  { border-left-color: var(--c-engagement);  }
+    .kpi-card--contributors{ border-left-color: var(--status-good);   }
+
+    .kpi-card__label {
+      font-size: .72rem;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .kpi-card__value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1;
+    }
+
+    .kpi-card__delta {
+      font-size: .78rem;
+      color: var(--status-good);
+      font-weight: 500;
+    }
+
+    /* ─── Toolbar ───────────────────────────────────────────────── */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: var(--space-m);
+      margin-bottom: var(--space-m);
+    }
+
+    .toolbar__title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      flex: 1;
+      min-width: 160px;
+    }
+
+    .toolbar__count {
+      font-size: .82rem;
+      color: var(--text-muted);
+    }
+
+    .search-wrap {
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .search-wrap__icon {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+
+    .search-input {
+      width: 240px;
+      padding: 8px 12px 8px 34px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      font-family: var(--font);
+      font-size: .875rem;
+      color: var(--text-primary);
+      background: var(--surface);
+      transition: border-color .15s, box-shadow .15s;
+      outline: none;
+    }
+
+    .search-input:focus {
+      border-color: var(--sap-blue);
+      box-shadow: 0 0 0 3px rgba(123,94,167,.15);
+    }
+
+    .search-input::placeholder { color: var(--text-muted); }
+
+    /* ─── Overview table card ────────────────────────────────────── */
+    .table-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-card);
+      overflow: hidden;
+    }
+
+    .table-scroll {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .875rem;
+    }
+
+    thead tr {
+      background: var(--surface-alt);
+      border-bottom: 2px solid var(--border);
+    }
+
+    th {
+      padding: var(--space-m) var(--space-m);
+      text-align: left;
+      font-size: .72rem;
+      font-weight: 700;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    th:hover { color: var(--sap-blue); }
+
+    .th-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 5px;
+      vertical-align: middle;
+    }
+
+    .sort-icon {
+      display: inline-block;
+      margin-left: 4px;
+      opacity: .4;
+      font-size: .75em;
+    }
+    th.sorted .sort-icon { opacity: 1; color: var(--sap-blue); }
+
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background .1s;
+    }
+
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: var(--sap-blue-light); }
+
+    td {
+      padding: var(--space-m) var(--space-m);
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .contributor-cell {
+      display: flex;
+      align-items: center;
+      gap: var(--space-s);
+    }
+
+    /* Avatar circle — used in both the table and the profile cards */
+    .avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .75rem;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .contributor-name {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .num { font-variant-numeric: tabular-nums; }
+
+    .mini-bar-wrap {
+      display: flex;
+      align-items: center;
+      gap: var(--space-s);
+      min-width: 110px;
+    }
+
+    .mini-bar {
+      height: 6px;
+      border-radius: 3px;
+      background: var(--c-impressions);
+      opacity: .7;
+      flex-shrink: 0;
+    }
+
+    .empty-row td {
+      text-align: center;
+      padding: var(--space-xl);
+      color: var(--text-muted);
+      font-size: .9rem;
+    }
+
+    /* ─── Row detail panel (Overview table) ─────────────────────── */
+    /*
+      A hidden <tr> injected after each data row. Clicking the data
+      row toggles .open, switching display: none → table-row.
+    */
+    .row-detail-tr { display: none; }
+    .row-detail-tr.open { display: table-row; }
+
+    .row-detail-panel {
+      background: var(--sap-blue-light);
+      border-bottom: 1px solid var(--border);
+      padding: var(--space-m) var(--space-l);
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-l);
+      align-items: flex-start;
+    }
+
+    .row-detail-heading {
+      font-size: .82rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: var(--space-xs);
+    }
+    .row-detail-date {
+      font-size: .75rem;
+      color: var(--text-muted);
+    }
+
+    .row-detail-metrics {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-s);
+    }
+
+    .row-detail-metric {
+      background: var(--surface);
+      border-radius: 6px;
+      padding: 6px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 90px;
+    }
+
+    .row-detail-metric__label {
+      font-size: .65rem;
+      font-weight: 600;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .row-detail-metric__value {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .row-detail-fields {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-s);
+      flex: 1;
+      min-width: 260px;
+    }
+
+    .row-detail-field-label {
+      font-size: .72rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 3px;
+      display: block;
+    }
+
+    .row-detail-input,
+    .row-detail-textarea {
+      width: 100%;
+      font-family: var(--font);
+      font-size: .82rem;
+      color: var(--text-primary);
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 7px 10px;
+      outline: none;
+      transition: border-color .15s, box-shadow .15s;
+      resize: vertical;
+    }
+
+    .row-detail-input:focus,
+    .row-detail-textarea:focus {
+      border-color: var(--sap-blue);
+      box-shadow: 0 0 0 3px rgba(123,94,167,.15);
+    }
+
+    .row-detail-textarea { min-height: 60px; }
+
+    .row-detail-url-row {
+      display: flex;
+      gap: var(--space-s);
+      align-items: center;
+    }
+
+    .row-detail-url-row .row-detail-input { flex: 1; }
+
+    .open-post-btn {
+      flex-shrink: 0;
+      padding: 7px 14px;
+      background: var(--sap-blue);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      font-family: var(--font);
+      font-size: .8rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background .15s, opacity .15s;
+    }
+
+    .open-post-btn:hover { background: var(--sap-blue-dark); }
+
+    .open-post-btn:disabled {
+      opacity: .4;
+      cursor: default;
+    }
+
+    .data-row { cursor: pointer; }
+    .data-row.expanded { background: var(--sap-blue-light) !important; }
+
+    /* ─── Profile card grid ─────────────────────────────────────── */
+    /*
+      Responsive grid: 3 cols on wide, 2 on medium, 1 on mobile.
+      Each card is a white surface with a colored top accent bar.
+    */
+    .profile-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: var(--space-m);
+    }
+
+    .profile-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-card);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .profile-card__top-bar {
+      height: 4px;
+      width: 100%;
+    }
+
+    .profile-card__body {
+      padding: var(--space-m);
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-m);
+    }
+
+    .profile-card__identity {
+      display: flex;
+      align-items: center;
+      gap: var(--space-m);
+    }
+
+    .profile-card .avatar {
+      width: 48px;
+      height: 48px;
+      font-size: 1rem;
+    }
+
+    .profile-card__name-wrap {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .profile-card__name {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1.2;
+    }
+
+    .profile-card__posts-count {
+      font-size: .75rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* ─── Status badge ──────────────────────────────────────────── */
+    /*
+      Three states: Complete (green), Incomplete (orange), No Data (grey).
+      Icon + text so identity is never color-alone.
+    */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: .7rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 20px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .status-badge--complete          { background: rgba(27,158,119,.12);  color: #146B50; }
+    .status-badge--analytics-incomplete { background: rgba(212,160,23,.15); color: #8B6200; }
+    .status-badge--no-analytics      { background: rgba(224,123,57,.15);   color: #A04A00; }
+    .status-badge--no-content        { background: rgba(136,150,168,.15);  color: #5A6B7A; }
+    /* legacy aliases kept for any existing references */
+    .status-badge--incomplete { background: rgba(217,95,2,.12);   color: #A84600; }
+    .status-badge--nodata     { background: rgba(136,150,168,.15);color: #5A6B7A; }
+
+    /* ─── Metric totals grid inside profile card ────────────────── */
+    .profile-card__metrics {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-s);
+    }
+
+    .profile-metric {
+      background: var(--surface-alt);
+      border-radius: 6px;
+      padding: var(--space-s) var(--space-m);
+    }
+
+    .profile-metric__label {
+      font-size: .67rem;
+      font-weight: 600;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 2px;
+    }
+
+    .profile-metric__value {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .profile-metric__dot {
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      margin-right: 4px;
+      vertical-align: middle;
+    }
+
+    /* ─── "View Posts" button on profile card ───────────────────── */
+    .view-posts-btn {
+      width: 100%;
+      padding: var(--space-s) var(--space-m);
+      background: none;
+      border: 1.5px solid var(--border);
+      border-radius: 6px;
+      font-family: var(--font);
+      font-size: .8rem;
+      font-weight: 600;
+      color: var(--sap-blue);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-s);
+      transition: background .15s, border-color .15s;
+      margin-top: auto;
+    }
+
+    .view-posts-btn:hover {
+      background: var(--sap-blue-light);
+      border-color: var(--sap-blue);
+    }
+
+    /* Active state: filled purple when this contributor's modal is open */
+    .view-posts-btn.active {
+      background: var(--sap-blue);
+      color: #fff;
+      border-color: var(--sap-blue);
+    }
+
+    .view-posts-btn__chevron {
+      transition: transform .2s ease;
+    }
+
+    /* Rotate chevron when this contributor's modal is open */
+    .view-posts-btn.active .view-posts-btn__chevron {
+      transform: rotate(180deg);
+    }
+
+    /* ─── Full-screen modal overlay ─────────────────────────────── */
+    /*
+      The overlay covers the full viewport with a semi-transparent
+      dark backdrop. The white panel sits centered inside it.
+
+      Fade-in: the overlay starts at opacity 0 and transitions to 1.
+      The panel scales very slightly (0.97→1) for a gentle lift effect.
+      Both transitions are driven by the .open class added via JS.
+    */
+    @keyframes modal-fade-in {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+
+    @keyframes modal-panel-in {
+      from { opacity: 0; transform: translate(-50%, -50%) scale(.97); }
+      to   { opacity: 1; transform: translate(-50%, -50%) scale(1);   }
+    }
+
+    .modal-overlay {
+      display: none;               /* hidden until JS adds .open */
+      position: fixed;
+      inset: 0;                    /* covers full viewport */
+      background: rgba(15, 10, 30, 0.55);  /* dark purple-tinted scrim */
+      z-index: 1000;
+      /* backdrop animates in */
+      animation: modal-fade-in .18s ease forwards;
+    }
+
+    .modal-overlay.open { display: block; }
+
+    /*
+      The white panel — 95vw × 95vh, centered with position:fixed + transform.
+      Flex column so the header stays pinned and the body scrolls.
+    */
+    .modal-panel {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 95vw;
+      height: 95vh;
+      background: var(--surface);
+      border-radius: 12px;
+      box-shadow: 0 24px 64px rgba(0,0,0,.28);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      animation: modal-panel-in .2s ease forwards;
+      /* colored top bar set inline per contributor */
+      border-top: 4px solid var(--sap-blue);
+    }
+
+    /* ── Modal header ── */
+    /*
+      Pinned at top of the panel. Contains avatar + name + status badge
+      and the × close button. Does not scroll with the body.
+    */
+    .modal-header {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: var(--space-m);
+      padding: var(--space-m) var(--space-l);
+      border-bottom: 1px solid var(--border);
+      background: var(--surface-alt);
+    }
+
+    .modal-header__identity {
+      display: flex;
+      align-items: center;
+      gap: var(--space-m);
+      flex: 1;
+      min-width: 0;
+    }
+
+    /* Larger avatar in modal header vs card (48→56px) */
+    .modal-header .avatar {
+      width: 56px;
+      height: 56px;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+
+    .modal-header__name {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .modal-header__sub {
+      font-size: .78rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* × close button — top right of the header */
+    .modal-close {
+      flex-shrink: 0;
+      width: 36px;
+      height: 36px;
+      border: none;
+      background: none;
+      font-size: 1.3rem;
+      line-height: 1;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background .15s, color .15s;
+    }
+
+    .modal-close:hover {
+      background: var(--border);
+      color: var(--text-primary);
+    }
+
+    /* ── Modal body ── */
+    /*
+      Scrollable area below the header.
+      Padding gives breathing room around the metric tiles and table.
+    */
+    .modal-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--space-l);
+    }
+
+    /* Metric tile row inside the modal — four tiles in one row */
+    .modal-metrics {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--space-m);
+      margin-bottom: var(--space-l);
+    }
+
+    /* Individual metric tile — same style as profile-metric but slightly taller */
+    .modal-metric {
+      background: var(--surface-alt);
+      border-radius: var(--radius);
+      padding: var(--space-m);
+      border-left: 3px solid transparent; /* set inline per metric */
+    }
+
+    .modal-metric__label {
+      font-size: .67rem;
+      font-weight: 600;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: var(--space-xs);
+    }
+
+    .modal-metric__value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* "Posts" section heading */
+    .modal-section-title {
+      font-size: .8rem;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: var(--space-m);
+      padding-bottom: var(--space-s);
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── Modal posts table ── */
+    /*
+      Full width inside the modal body. No horizontal scroll needed —
+      the 95vw panel gives enough room for all 9 columns.
+      Inputs are styled to blend into the table cell background.
+    */
+    .modal-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .875rem;
+    }
+
+    .modal-table thead tr {
+      background: var(--surface-alt);
+      border-bottom: 2px solid var(--border);
+    }
+
+    .modal-table th {
+      padding: 10px 12px;
+      text-align: left;
+      font-size: .7rem;
+      font-weight: 700;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      white-space: nowrap;
+      cursor: default;
+    }
+
+    .modal-table td {
+      padding: 10px 12px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+
+    .modal-table tbody tr:last-child td { border-bottom: none; }
+    .modal-table tbody tr:hover { background: var(--sap-blue-light); }
+
+    /* Empty state */
+    .modal-empty {
+      text-align: center;
+      padding: var(--space-xl);
+      color: var(--text-muted);
+      font-size: .9rem;
+    }
+
+    /* Collapse on small screens — stack metric tiles 2×2 */
+    @media (max-width: 700px) {
+      .modal-metrics { grid-template-columns: 1fr 1fr; }
+      .modal-body { padding: var(--space-m); }
+    }
+
+    /* ─── LinkedIn URL button & no-link label (Overview table) ──── */
+    .url-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border: 1.5px solid var(--sap-blue);
+      border-radius: 20px;
+      background: none;
+      font-family: var(--font);
+      font-size: .75rem;
+      font-weight: 600;
+      color: var(--sap-blue);
+      text-decoration: none;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .url-btn:hover { background: var(--sap-blue-light); }
+
+    .no-link {
+      font-size: .75rem;
+      color: var(--text-muted);
+    }
+
+    /* ─── Inline table controls (modal posts table) ─────────────── */
+    /*
+      LinkedIn URL, Reviewed By, and Notes columns each embed a form
+      control directly in the <td>. Styled to sit flush in the cell.
+    */
+    .td-url-wrap {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      min-width: 220px;
+    }
+
+    .td-url-input {
+      flex: 1;
+      min-width: 0;
+      font-family: var(--font);
+      font-size: .8rem;
+      color: var(--text-primary);
+      background: var(--surface-alt);
+      border: 1.5px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 8px;
+      outline: none;
+      transition: border-color .15s, box-shadow .15s;
+    }
+
+    .td-url-input:focus {
+      border-color: var(--sap-blue);
+      box-shadow: 0 0 0 2px rgba(123,94,167,.15);
+      background: var(--surface);
+    }
+
+    .td-open-btn {
+      flex-shrink: 0;
+      padding: 5px 10px;
+      background: none;
+      border: 1.5px solid var(--sap-blue);
+      border-radius: 6px;
+      font-family: var(--font);
+      font-size: .75rem;
+      font-weight: 600;
+      color: var(--sap-blue);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background .15s;
+    }
+
+    .td-open-btn:hover { background: var(--sap-blue-light); }
+    .td-open-btn:disabled { opacity: .35; cursor: default; }
+
+    .td-reviewer-select {
+      font-family: var(--font);
+      font-size: .8rem;
+      color: var(--text-primary);
+      background: var(--surface-alt);
+      border: 1.5px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 8px;
+      outline: none;
+      cursor: pointer;
+      transition: border-color .15s;
+      min-width: 130px;
+    }
+
+    .td-reviewer-select:focus {
+      border-color: var(--sap-blue);
+      box-shadow: 0 0 0 2px rgba(123,94,167,.15);
+    }
+
+    .td-notes-input {
+      font-family: var(--font);
+      font-size: .8rem;
+      color: var(--text-primary);
+      background: var(--surface-alt);
+      border: 1.5px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 8px;
+      outline: none;
+      transition: border-color .15s, box-shadow .15s;
+      min-width: 180px;
+      width: 100%;
+    }
+
+    .td-notes-input:focus {
+      border-color: var(--sap-blue);
+      box-shadow: 0 0 0 2px rgba(123,94,167,.15);
+      background: var(--surface);
+    }
+
+    /* ─── Filter pills (Social Stars tab) ──────────────────────── */
+    .filter-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-s);
+      margin-bottom: var(--space-m);
+    }
+
+    .filter-pill {
+      padding: 6px 16px;
+      border-radius: 20px;
+      border: 1.5px solid var(--border);
+      background: var(--surface);
+      font-family: var(--font);
+      font-size: .8rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: background .15s, border-color .15s, color .15s;
+      white-space: nowrap;
+    }
+
+    .filter-pill:hover {
+      border-color: var(--sap-blue);
+      color: var(--sap-blue);
+    }
+
+    .filter-pill.active {
+      background: var(--sap-blue);
+      border-color: var(--sap-blue);
+      color: #fff;
+    }
+
+    /* ─── Editable metric cells (modal posts table) ─────────────── */
+    .editable-metric {
+      cursor: pointer;
+      border-radius: 4px;
+      padding: 2px 4px;
+      transition: background .1s;
+      display: inline-block;
+      min-width: 40px;
+    }
+
+    .editable-metric:hover {
+      background: var(--sap-blue-light);
+      outline: 1px dashed var(--sap-blue);
+    }
+
+    .metric-edit-input {
+      font-family: var(--font);
+      font-size: .875rem;
+      font-variant-numeric: tabular-nums;
+      color: var(--text-primary);
+      background: var(--surface);
+      border: 1.5px solid var(--sap-blue);
+      border-radius: 4px;
+      padding: 2px 6px;
+      width: 90px;
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(123,94,167,.15);
+    }
+
+    /* ─── Footer ─────────────────────────────────────────────────── */
+    .footer {
+      text-align: center;
+      margin-top: var(--space-xl);
+      font-size: .75rem;
+      color: var(--text-muted);
+    }
+
+    /* ─── Responsive tweaks ──────────────────────────────────────── */
+    @media (max-width: 600px) {
+      .header { padding: var(--space-m); }
+      .header__badge { display: none; }
+      .view-toggle { padding: 0 var(--space-m); }
+      .page { padding: var(--space-m) var(--space-s); }
+      .search-input { width: 100%; }
+      .toolbar { flex-direction: column; align-items: flex-start; }
+      .profile-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════════
+       HEADER
+  ════════════════════════════════════════════════════ -->
+  <header class="header">
+    <div class="header__logo" aria-hidden="true">
+      <svg width="30" height="18" viewBox="0 0 30 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <text x="1" y="15" font-family="Arial,sans-serif" font-size="14" font-weight="900" fill="#7B5EA7">SAP</text>
+      </svg>
+    </div>
+
+    <div class="header__titles">
+      <div class="header__title">SAP Social Stars</div>
+      <div class="header__subtitle">SAP Connect Pilot · Content Analytics</div>
+    </div>
+
+    <div class="header__badge">Pilot Program · SAP Social Stars</div>
+  </header>
+
+
+  <!-- ═══════════════════════════════════════════════════
+       VIEW TOGGLE
+  ════════════════════════════════════════════════════ -->
+  <nav class="view-toggle" role="tablist" aria-label="Dashboard views">
+    <button class="view-btn active" id="btn-overview" role="tab"
+      aria-selected="true" aria-controls="view-overview">Overview</button>
+    <button class="view-btn" id="btn-stars" role="tab"
+      aria-selected="false" aria-controls="view-stars">Social Stars</button>
+  </nav>
+
+
+  <!-- ═══════════════════════════════════════════════════
+       MAIN PAGE
+  ════════════════════════════════════════════════════ -->
+  <main class="page">
+
+    <!-- KPI summary cards — always visible -->
+    <section class="kpi-row" aria-label="Summary metrics">
+      <div class="kpi-card kpi-card--impressions">
+        <div class="kpi-card__label">Total Impressions</div>
+        <div class="kpi-card__value" id="kpi-impressions">—</div>
+        <div class="kpi-card__delta" id="kpi-impressions-delta"></div>
+      </div>
+      <div class="kpi-card kpi-card--engagement">
+        <div class="kpi-card__label">Total Engagement</div>
+        <div class="kpi-card__value" id="kpi-engagement">—</div>
+        <div class="kpi-card__delta" id="kpi-engagement-delta"></div>
+      </div>
+      <div class="kpi-card kpi-card--contributors">
+        <div class="kpi-card__label">Active Contributors</div>
+        <div class="kpi-card__value" id="kpi-contributors">—</div>
+        <div class="kpi-card__delta" id="kpi-contributors-delta"></div>
+      </div>
+    </section>
+
+
+    <!-- ── OVERVIEW VIEW ──────────────────────────────────────────── -->
+    <section class="view-section active" id="view-overview"
+      role="tabpanel" aria-labelledby="btn-overview">
+
+      <div class="toolbar">
+        <div>
+          <div class="toolbar__title">Post Performance</div>
+          <div class="toolbar__count" id="row-count"></div>
+        </div>
+        <div class="search-wrap">
+          <svg class="search-wrap__icon" width="16" height="16" viewBox="0 0 16 16"
+               fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <circle cx="6.5" cy="6.5" r="4.5"/>
+            <line x1="10.5" y1="10.5" x2="14" y2="14"/>
+          </svg>
+          <input class="search-input" type="search" id="search-input"
+            placeholder="Search contributor…" aria-label="Filter by contributor name" />
+        </div>
+      </div>
+
+      <div class="table-card">
+        <div class="table-scroll">
+          <table aria-label="Post performance table">
+            <thead>
+              <tr>
+                <th data-col="name">Contributor <span class="sort-icon">↕</span></th>
+                <th data-col="label">Post Label <span class="sort-icon">↕</span></th>
+                <th data-col="date">Post Date <span class="sort-icon">↕</span></th>
+                <th data-col="impressions">
+                  <span class="th-dot" style="background:var(--c-impressions)"></span>Impressions
+                  <span class="sort-icon">↕</span>
+                </th>
+                <th data-col="reach">
+                  <span class="th-dot" style="background:var(--c-reach)"></span>Reach
+                  <span class="sort-icon">↕</span>
+                </th>
+                <th data-col="engagement">
+                  <span class="th-dot" style="background:var(--c-engagement)"></span>Engagement
+                  <span class="sort-icon">↕</span>
+                </th>
+                <th data-col="linkClicks">
+                  <span class="th-dot" style="background:var(--c-clicks)"></span>Link Clicks
+                  <span class="sort-icon">↕</span>
+                </th>
+                <th>Post</th>
+              </tr>
+            </thead>
+            <tbody id="post-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+
+    <!-- ── SOCIAL STARS VIEW ──────────────────────────────────────── -->
+    <section class="view-section" id="view-stars"
+      role="tabpanel" aria-labelledby="btn-stars">
+
+      <div class="toolbar">
+        <div class="toolbar__title">Social Stars — Contributor Profiles</div>
+        <div class="toolbar__count" id="stars-count"></div>
+      </div>
+
+      <!-- Filter pills -->
+      <div class="filter-pills" id="filter-pills" role="group" aria-label="Filter contributors by status">
+        <button class="filter-pill active" data-filter="all">All</button>
+        <button class="filter-pill" data-filter="complete">Complete</button>
+        <button class="filter-pill" data-filter="analytics-incomplete">Analytics Incomplete</button>
+        <button class="filter-pill" data-filter="no-analytics">No Analytics</button>
+        <button class="filter-pill" data-filter="no-content">No Content Submitted</button>
+      </div>
+
+      <!-- Profile cards injected by JS -->
+      <div class="profile-grid" id="profile-grid"></div>
+
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    SAP Social Stars Dashboard · Data refreshed daily · <span id="footer-date"></span>
+  </footer>
+
+  <!--
+    Full-screen modal overlay — lives outside <main> so it sits above
+    everything at z-index 1000.  JS populates and opens/closes it.
+    The .open class toggles display: none → block.
+  -->
+  <div class="modal-overlay" id="modal-overlay" role="dialog"
+       aria-modal="true" aria-labelledby="modal-contributor-name">
+    <div class="modal-panel" id="modal-panel">
+      <!-- contents injected by openModal() -->
+    </div>
+  </div>
+
+
+  <script>
+    /* ═══════════════════════════════════════════════════════════════
+       DATA
+       null = value not reported → renders as "—".
+       "status" drives the completeness badge on the profile card.
+    ═══════════════════════════════════════════════════════════════ */
+    const CONTRIBUTORS = [
+      { id: 1, name: "Jorge Salles",    initials: "JS", color: "#7B5EA7", status: "complete"              },
+      { id: 2, name: "Rinky Karthik",   initials: "RK", color: "#D95F02", status: "complete"              },
+      { id: 3, name: "Carolina Chavez", initials: "CC", color: "#1B9E77", status: "complete"              },
+      { id: 4, name: "Isabeau Stender", initials: "IS", color: "#E7298A", status: "analytics-incomplete"  },
+      { id: 5, name: "Pedro Pereira",   initials: "PP", color: "#5E4282", status: "no-analytics"          },
+      { id: 6, name: "Adolfo",          initials: "AD", color: "#8896A8", status: "no-content"            },
+      { id: 7, name: "Tahera",          initials: "TA", color: "#4B5A6E", status: "no-content"            },
+    ];
+
+    const RAW_POSTS = [
+      /* Jorge Salles */
+      { contributorId: 1, label: "Pre-Event",  date: "2024-10-01", impressions: 2776, reach: 2249, engagement: 28,   linkClicks: 62,   url: null },
+      { contributorId: 1, label: "Post-Event", date: "2024-10-15", impressions: 3931, reach: 2580, engagement: 14,   linkClicks: null, url: null },
+
+      /* Rinky Karthik */
+      { contributorId: 2, label: "Pre-Event",  date: "2024-10-01", impressions: 1966, reach: 1293, engagement: 113,  linkClicks: 43,   url: null },
+      { contributorId: 2, label: "Day 1",      date: "2024-10-08", impressions: 4177, reach: 2315, engagement: 123,  linkClicks: null, url: null },
+      { contributorId: 2, label: "Day 2",      date: "2024-10-09", impressions: 2096, reach: 1278, engagement: 56,   linkClicks: null, url: null },
+      { contributorId: 2, label: "Day 3",      date: "2024-10-10", impressions: 8709, reach: 5647, engagement: 209,  linkClicks: null, url: null },
+      { contributorId: 2, label: "Post-Event", date: "2024-10-15", impressions: 1853, reach: 1121, engagement: null, linkClicks: 42,   url: null },
+
+      /* Carolina Chavez */
+      { contributorId: 3, label: "Pre-Event",  date: "2024-10-01", impressions: 2379, reach: 1464, engagement: 163,  linkClicks: 37,   url: null },
+
+      /* Isabeau Stender */
+      { contributorId: 4, label: "Pre-Event",  date: "2024-10-01", impressions: null, reach: null, engagement: null, linkClicks: 5,    url: null },
+
+      /* Pedro Pereira */
+      { contributorId: 5, label: "Post-Event", date: "2024-10-15", impressions: null, reach: null, engagement: null, linkClicks: null, url: null },
+    ];
+
+    /* Merge contributor metadata into each post */
+    const POSTS = RAW_POSTS.map(post => {
+      const contributor = CONTRIBUTORS.find(c => c.id === post.contributorId);
+      return { ...post, ...contributor };
+    });
+
+
+    /* ═══════════════════════════════════════════════════════════════
+       STATE
+    ═══════════════════════════════════════════════════════════════ */
+    let state = {
+      query:        "",
+      sortCol:      "date",
+      sortDir:      "desc",
+      activeView:   "overview",
+      activeFilter: "all",
+      /*
+        openCardId: the contributorId whose posts drawer is currently open.
+        null means the drawer is closed.
+      */
+      openCardId: null,
+    };
+
+
+    /* ═══════════════════════════════════════════════════════════════
+       HELPERS
+    ═══════════════════════════════════════════════════════════════ */
+
+    function fmt(n) {
+      return n.toLocaleString("en-US");
+    }
+
+    function fmtDate(iso) {
+      const d = new Date(iso + "T00:00:00");
+      return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    }
+
+    function fmtOrDash(n) {
+      return (n === null || n === undefined) ? "—" : fmt(n);
+    }
+
+    function nullableSum(values) {
+      const defined = values.filter(v => v !== null && v !== undefined);
+      if (defined.length === 0) return null;
+      return defined.reduce((s, v) => s + v, 0);
+    }
+
+    /* ── localStorage helpers for editable metric values ── */
+    const LS_KEY = "sap-social-stars-edits-v1";
+
+    function loadEdits() {
+      try { return JSON.parse(localStorage.getItem(LS_KEY)) || {}; }
+      catch { return {}; }
+    }
+
+    function saveEdit(contributorId, postIdx, field, value) {
+      const edits = loadEdits();
+      const key = `${contributorId}-${postIdx}-${field}`;
+      edits[key] = value;
+      localStorage.setItem(LS_KEY, JSON.stringify(edits));
+    }
+
+    function getEdit(contributorId, postIdx, field) {
+      const edits = loadEdits();
+      const key = `${contributorId}-${postIdx}-${field}`;
+      return key in edits ? edits[key] : undefined;
+    }
+
+    /* Return the effective value for a post metric, preferring localStorage edits */
+    function effectiveValue(contributorId, postIdx, field, rawValue) {
+      const edit = getEdit(contributorId, postIdx, field);
+      if (edit !== undefined) return edit === "" ? null : Number(edit);
+      return rawValue;
+    }
+
+    const MAX_IMPRESSIONS = Math.max(...POSTS.map(p => p.impressions).filter(v => v !== null));
+
+    /*
+      openPost(inputId) — opens the URL in the named input in a new tab.
+      Called from inline onclick on "Open →" buttons.
+    */
+    function openPost(inputId) {
+      const url = document.getElementById(inputId).value.trim();
+      if (url) window.open(url, "_blank", "noopener,noreferrer");
+    }
+
+
+    /* ═══════════════════════════════════════════════════════════════
+       KPI CARDS
+    ═══════════════════════════════════════════════════════════════ */
+    function updateKPIs() {
+      const totalImpressions = POSTS.reduce((s, p) => s + (p.impressions ?? 0), 0);
+      const totalEngagement  = POSTS.reduce((s, p) => s + (p.engagement  ?? 0), 0);
+      const activeContribs   = new Set(POSTS.map(p => p.contributorId)).size;
+
+      document.getElementById("kpi-impressions").textContent  = fmt(totalImpressions);
+      document.getElementById("kpi-engagement").textContent   = fmt(totalEngagement);
+      document.getElementById("kpi-contributors").textContent = activeContribs;
+
+      document.getElementById("kpi-impressions-delta").textContent  = "Across all reported posts";
+      document.getElementById("kpi-engagement-delta").textContent   = "Likes + comments + reactions";
+      document.getElementById("kpi-contributors-delta").textContent = `of ${CONTRIBUTORS.length} total Social Stars`;
+    }
+
+
+    /* ═══════════════════════════════════════════════════════════════
+       FILTER + SORT  (Overview table)
+    ═══════════════════════════════════════════════════════════════ */
+    function getFilteredSorted() {
+      let rows = [...POSTS];
+
+      if (state.query) {
+        const q = state.query.toLowerCase();
+        rows = rows.filter(r => r.name.toLowerCase().includes(q));
+      }
+
+      rows.sort((a, b) => {
+        let va = a[state.sortCol];
+        let vb = b[state.sortCol];
+
+        /* Null values always sort to the bottom */
+        if (va === null && vb === null) return 0;
+        if (va === null) return 1;
+        if (vb === null) return -1;
+
+        if (typeof va === "string") {
+          va = va.toLowerCase(); vb = vb.toLowerCase();
+          if (va < vb) return state.sortDir === "asc" ? -1 :  1;
+          if (va > vb) return state.sortDir === "asc" ?  1 : -1;
+          return 0;
+        }
+
+        return state.sortDir === "asc" ? va - vb : vb - va;
+      });
+
+      return rows;
+    }
+
+
+    /* ═══════════════════════════════════════════════════════════════
+       RENDER — Overview table
+       Each data row has a hidden detail <tr> below it that toggles
+       on row click (URL paste + notes panel).
+    ═══════════════════════════════════════════════════════════════ */
+    function renderTable() {
+      const rows  = getFilteredSorted();
+      const tbody = document.getElementById("post-tbody");
+      tbody.innerHTML = "";
+
+      document.getElementById("row-count").textContent =
+        rows.length === POSTS.length
+          ? `${rows.length} posts`
+          : `${rows.length} of ${POSTS.length} posts`;
+
+      if (rows.length === 0) {
+        tbody.innerHTML = `
+          <tr class="empty-row">
+            <td colspan="8">No posts match "<strong>${state.query}</strong>"</td>
+          </tr>`;
+        return;
+      }
+
+      rows.forEach(post => {
+        const tr = document.createElement("tr");
+        tr.className = "data-row";
+
+        const barPct   = post.impressions !== null ? post.impressions / MAX_IMPRESSIONS : 0;
+        const barWidth = Math.round(barPct * 60);
+
+        const postCell = post.url
+          ? `<a class="url-btn" href="${post.url}" target="_blank" rel="noopener noreferrer"
+               onclick="event.stopPropagation()">View on LinkedIn →</a>`
+          : `<span class="no-link">No link</span>`;
+
+        tr.innerHTML = `
+          <td>
+            <div class="contributor-cell">
+              <div class="avatar" style="background:${post.color}" aria-hidden="true">${post.initials}</div>
+              <span class="contributor-name">${post.name}</span>
+            </div>
+          </td>
+          <td>${post.label}</td>
+          <td>${fmtDate(post.date)}</td>
+          <td>
+            <div class="mini-bar-wrap">
+              ${barWidth > 0 ? `<div class="mini-bar" style="width:${barWidth}px"></div>` : ""}
+              <span class="num">${fmtOrDash(post.impressions)}</span>
+            </div>
+          </td>
+          <td class="num">${fmtOrDash(post.reach)}</td>
+          <td class="num">${fmtOrDash(post.engagement)}</td>
+          <td class="num">${fmtOrDash(post.linkClicks)}</td>
+          <td>${postCell}</td>
+        `;
+
+        /* Hidden detail row */
+        const detailTr = document.createElement("tr");
+        detailTr.className = "row-detail-tr";
+
+        const inputId = `url-input-${post.contributorId}-${post.date}-${post.label.replace(/\s+/g,'-')}`;
+        const btnId   = `open-btn-${post.contributorId}-${post.date}-${post.label.replace(/\s+/g,'-')}`;
+
+        detailTr.innerHTML = `
+          <td colspan="8" style="padding:0; border-bottom:0">
+            <div class="row-detail-panel">
+              <div>
+                <div class="row-detail-heading">${post.label}</div>
+                <div class="row-detail-date">${fmtDate(post.date)} · ${post.name}</div>
+              </div>
+              <div class="row-detail-metrics">
+                <div class="row-detail-metric">
+                  <span class="row-detail-metric__label" style="color:var(--c-impressions)">Impressions</span>
+                  <span class="row-detail-metric__value">${fmtOrDash(post.impressions)}</span>
+                </div>
+                <div class="row-detail-metric">
+                  <span class="row-detail-metric__label" style="color:var(--c-reach)">Reach</span>
+                  <span class="row-detail-metric__value">${fmtOrDash(post.reach)}</span>
+                </div>
+                <div class="row-detail-metric">
+                  <span class="row-detail-metric__label" style="color:var(--c-engagement)">Engagement</span>
+                  <span class="row-detail-metric__value">${fmtOrDash(post.engagement)}</span>
+                </div>
+                <div class="row-detail-metric">
+                  <span class="row-detail-metric__label" style="color:var(--c-clicks)">Link Clicks</span>
+                  <span class="row-detail-metric__value">${fmtOrDash(post.linkClicks)}</span>
+                </div>
+              </div>
+              <div class="row-detail-fields">
+                <div>
+                  <label class="row-detail-field-label" for="${inputId}">LinkedIn Post URL</label>
+                  <div class="row-detail-url-row">
+                    <input class="row-detail-input" type="url" id="${inputId}"
+                      placeholder="https://www.linkedin.com/posts/…" value="${post.url || ''}" />
+                    <button class="open-post-btn" id="${btnId}" ${post.url ? '' : 'disabled'}
+                      onclick="event.stopPropagation(); openPost('${inputId}')">Open Post ↗</button>
+                  </div>
+                </div>
+                <div>
+                  <label class="row-detail-field-label">Notes</label>
+                  <textarea class="row-detail-textarea" placeholder="Add context about this post…"
+                    onclick="event.stopPropagation()"></textarea>
+                </div>
+              </div>
+            </div>
+          </td>
+        `;
+
+        const urlInput = detailTr.querySelector(`#${inputId}`);
+        const openBtn  = detailTr.querySelector(`#${btnId}`);
+        urlInput.addEventListener("input", e => {
+          e.stopPropagation();
+          openBtn.disabled = e.target.value.trim() === "";
+        });
+
+        tr.addEventListener("click", () => {
+          const isOpen = detailTr.classList.toggle("open");
+          tr.classList.toggle("expanded", isOpen);
+        });
+
+        tbody.appendChild(tr);
+        tbody.appendChild(detailTr);
+      });
+
+      /* Update sort indicators */
+      document.querySelectorAll("thead th").forEach(th => {
+        th.classList.toggle("sorted", th.dataset.col === state.sortCol);
+        const icon = th.querySelector(".sort-icon");
+        if (icon) {
+          icon.textContent = th.dataset.col === state.sortCol
+            ? (state.sortDir === "asc" ? "↑" : "↓") : "↕";
+        }
+      });
+    }
+
+
+    /* ═══════════════════════════════════════════════════════════════
+       RENDER — Profile cards (Social Stars tab)
+       Cards show avatar, name, status badge, and 4 metric tiles.
+       No mini-table inside the card — posts open in the shared drawer.
+    ═══════════════════════════════════════════════════════════════ */
+    function renderProfileCards() {
+      const grid = document.getElementById("profile-grid");
+      grid.innerHTML = "";
+
+      const filtered = state.activeFilter === "all"
+        ? CONTRIBUTORS
+        : CONTRIBUTORS.filter(c => c.status === state.activeFilter);
+
+      document.getElementById("stars-count").textContent =
+        filtered.length === CONTRIBUTORS.length
+          ? `${CONTRIBUTORS.length} contributors`
+          : `${filtered.length} of ${CONTRIBUTORS.length} contributors`;
+
+      const badgeMap = {
+        "complete":              { cls: "status-badge--complete",              icon: "✓", label: "Complete"          },
+        "analytics-incomplete":  { cls: "status-badge--analytics-incomplete",  icon: "⚠", label: "Incomplete"        },
+        "no-analytics":          { cls: "status-badge--no-analytics",          icon: "✗", label: "No Analytics"      },
+        "no-content":            { cls: "status-badge--no-content",            icon: "○", label: "No Content"        },
+      };
+
+      if (filtered.length === 0) {
+        grid.innerHTML = `<p style="color:var(--text-muted);padding:var(--space-xl) 0">No contributors match this filter.</p>`;
+        return;
+      }
+
+      filtered.forEach(contributor => {
+        const posts = POSTS.filter(p => p.contributorId === contributor.id);
+        const postIdx = (p) => POSTS.filter(x => x.contributorId === contributor.id).indexOf(p);
+
+        const totalImpressions = nullableSum(posts.map((p, i) => effectiveValue(contributor.id, i, "impressions", p.impressions)));
+        const totalReach       = nullableSum(posts.map((p, i) => effectiveValue(contributor.id, i, "reach",       p.reach)));
+        const totalEngagement  = nullableSum(posts.map((p, i) => effectiveValue(contributor.id, i, "engagement",  p.engagement)));
+        const totalClicks      = nullableSum(posts.map((p, i) => effectiveValue(contributor.id, i, "linkClicks",  p.linkClicks)));
+
+        const badge = badgeMap[contributor.status] || badgeMap["no-content"];
+
+        const postWord = posts.length === 1 ? "post" : "posts";
+        const postCountLabel = posts.length === 0
+          ? "No posts yet"
+          : `${posts.length} ${postWord} submitted`;
+
+        const card = document.createElement("div");
+        card.className = "profile-card";
+        card.dataset.contributorId = contributor.id;
+
+        card.innerHTML = `
+          <div class="profile-card__top-bar" style="background:${contributor.color}"></div>
+          <div class="profile-card__body">
+            <div class="profile-card__identity">
+              <div class="avatar" style="background:${contributor.color}" aria-hidden="true">
+                ${contributor.initials}
+              </div>
+              <div class="profile-card__name-wrap">
+                <div class="profile-card__name">${contributor.name}</div>
+                <div class="profile-card__posts-count">${postCountLabel}</div>
+              </div>
+              <span class="status-badge ${badge.cls}" title="Data completeness">
+                ${badge.icon} ${badge.label}
+              </span>
+            </div>
+
+            <div class="profile-card__metrics">
+              <div class="profile-metric">
+                <div class="profile-metric__label">
+                  <span class="profile-metric__dot" style="background:var(--c-impressions)"></span>Impressions
+                </div>
+                <div class="profile-metric__value num">${fmtOrDash(totalImpressions)}</div>
+              </div>
+              <div class="profile-metric">
+                <div class="profile-metric__label">
+                  <span class="profile-metric__dot" style="background:var(--c-reach)"></span>Reach
+                </div>
+                <div class="profile-metric__value num">${fmtOrDash(totalReach)}</div>
+              </div>
+              <div class="profile-metric">
+                <div class="profile-metric__label">
+                  <span class="profile-metric__dot" style="background:var(--c-engagement)"></span>Engagement
+                </div>
+                <div class="profile-metric__value num">${fmtOrDash(totalEngagement)}</div>
+              </div>
+              <div class="profile-metric">
+                <div class="profile-metric__label">
+                  <span class="profile-metric__dot" style="background:var(--c-clicks)"></span>Link Clicks
+                </div>
+                <div class="profile-metric__value num">${fmtOrDash(totalClicks)}</div>
+              </div>
+            </div>
+
+            <!--
+              "View Posts" opens the full-screen modal for this contributor.
+              Clicking again (while modal is open) closes it.
+            -->
+            <button
+              class="view-posts-btn"
+              data-contributor-id="${contributor.id}"
+              aria-expanded="false"
+            >
+              View Posts
+              <svg class="view-posts-btn__chevron" width="14" height="14" viewBox="0 0 14 14"
+                   fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <polyline points="2,4 7,10 12,4"/>
+              </svg>
+            </button>
+
+          </div>
+        `;
+
+        grid.appendChild(card);
+      });
+    }
+
+
+    /* ═══════════════════════════════════════════════════════════════
+       MODAL
+       openModal(contributorId) — build and show the full-screen modal
+         for that contributor. Clicking the same card again closes it.
+       closeModal()             — hide and clear the modal.
+    ═══════════════════════════════════════════════════════════════ */
+    function openModal(contributorId) {
+      /* Clicking the active card's button again closes the modal */
+      if (state.openCardId === contributorId) {
+        closeModal();
+        return;
+      }
+
+      state.openCardId = contributorId;
+
+      const contributor = CONTRIBUTORS.find(c => c.id === contributorId);
+      const posts       = POSTS.filter(p => p.contributorId === contributorId);
+
+      /* Compute metric totals using effective (possibly edited) values */
+      const totalImpressions = nullableSum(posts.map((p, i) => effectiveValue(contributorId, i, "impressions", p.impressions)));
+      const totalReach       = nullableSum(posts.map((p, i) => effectiveValue(contributorId, i, "reach",       p.reach)));
+      const totalEngagement  = nullableSum(posts.map((p, i) => effectiveValue(contributorId, i, "engagement",  p.engagement)));
+      const totalClicks      = nullableSum(posts.map((p, i) => effectiveValue(contributorId, i, "linkClicks",  p.linkClicks)));
+
+      const badgeMap = {
+        "complete":             { cls: "status-badge--complete",             icon: "✓", label: "Complete"     },
+        "analytics-incomplete": { cls: "status-badge--analytics-incomplete", icon: "⚠", label: "Incomplete"   },
+        "no-analytics":         { cls: "status-badge--no-analytics",         icon: "✗", label: "No Analytics" },
+        "no-content":           { cls: "status-badge--no-content",           icon: "○", label: "No Content"   },
+      };
+      const badge = badgeMap[contributor.status] || badgeMap["no-content"];
+
+      const postWord        = posts.length === 1 ? "post" : "posts";
+      const postCountLabel  = posts.length === 0 ? "No posts yet" : `${posts.length} ${postWord} submitted`;
+
+      /* ── Populate the modal panel ── */
+      const panel = document.getElementById("modal-panel");
+
+      panel.style.borderTopColor = contributor.color;
+
+      panel.innerHTML = `
+        <!-- ── Fixed header ── -->
+        <div class="modal-header">
+          <div class="modal-header__identity">
+            <div class="avatar modal-header__avatar"
+                 style="background:${contributor.color}; width:56px; height:56px; font-size:1.1rem"
+                 aria-hidden="true">${contributor.initials}</div>
+            <div>
+              <div class="modal-header__name" id="modal-contributor-name">${contributor.name}</div>
+              <div class="modal-header__sub">${postCountLabel}</div>
+            </div>
+            <span class="status-badge ${badge.cls}" style="margin-left:var(--space-s)">
+              ${badge.icon} ${badge.label}
+            </span>
+          </div>
+          <button class="modal-close" id="modal-close-btn" aria-label="Close">✕</button>
+        </div>
+
+        <!-- ── Scrollable body ── -->
+        <div class="modal-body">
+
+          <!-- Four metric tiles in one row — IDs so JS can update them on edit -->
+          <div class="modal-metrics">
+            <div class="modal-metric" style="border-left-color:var(--c-impressions)">
+              <div class="modal-metric__label">Impressions</div>
+              <div class="modal-metric__value num" id="modal-kpi-impressions">${fmtOrDash(totalImpressions)}</div>
+            </div>
+            <div class="modal-metric" style="border-left-color:var(--c-reach)">
+              <div class="modal-metric__label">Reach</div>
+              <div class="modal-metric__value num" id="modal-kpi-reach">${fmtOrDash(totalReach)}</div>
+            </div>
+            <div class="modal-metric" style="border-left-color:var(--c-engagement)">
+              <div class="modal-metric__label">Engagement</div>
+              <div class="modal-metric__value num" id="modal-kpi-engagement">${fmtOrDash(totalEngagement)}</div>
+            </div>
+            <div class="modal-metric" style="border-left-color:var(--c-clicks)">
+              <div class="modal-metric__label">Link Clicks</div>
+              <div class="modal-metric__value num" id="modal-kpi-linkClicks">${fmtOrDash(totalClicks)}</div>
+            </div>
+          </div>
+
+          <div class="modal-section-title">Posts</div>
+
+          ${posts.length === 0
+            ? `<div class="modal-empty">No posts submitted yet for ${contributor.name}.</div>`
+            : `<div id="modal-table-wrap"></div>`
+          }
+
+        </div><!-- /modal-body -->
+      `;
+
+      /* Wire up the × button now that it's in the DOM */
+      document.getElementById("modal-close-btn").addEventListener("click", closeModal);
+
+      /* ── Function to recompute and update KPI tiles from current edits ── */
+      function refreshModalKPIs() {
+        const fields = ["impressions", "reach", "engagement", "linkClicks"];
+        fields.forEach(field => {
+          const total = nullableSum(posts.map((p, i) => effectiveValue(contributorId, i, field, p[field])));
+          const el = document.getElementById(`modal-kpi-${field}`);
+          if (el) el.textContent = fmtOrDash(total);
+        });
+        /* Also refresh the profile card metrics if visible */
+        renderProfileCards();
+      }
+
+      /* Build the posts table as real DOM so we can attach input listeners */
+      if (posts.length > 0) {
+        const wrap  = panel.querySelector("#modal-table-wrap");
+        const table = document.createElement("table");
+        table.className = "modal-table";
+        table.setAttribute("aria-label", `Posts for ${contributor.name}`);
+
+        table.innerHTML = `
+          <thead>
+            <tr>
+              <th>Label</th>
+              <th>Date</th>
+              <th><span class="th-dot" style="background:var(--c-impressions)"></span>Impressions</th>
+              <th><span class="th-dot" style="background:var(--c-reach)"></span>Reach</th>
+              <th><span class="th-dot" style="background:var(--c-engagement)"></span>Engagement</th>
+              <th><span class="th-dot" style="background:var(--c-clicks)"></span>Link Clicks</th>
+              <th>LinkedIn URL</th>
+              <th>Reviewed By</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+        `;
+
+        const tbody = document.createElement("tbody");
+
+        posts.forEach((p, idx) => {
+          const tr = document.createElement("tr");
+
+          const urlId = `m-url-${p.contributorId}-${idx}`;
+          const btnId = `m-btn-${p.contributorId}-${idx}`;
+
+          /* Metric fields that are editable */
+          const metricFields = ["impressions", "reach", "engagement", "linkClicks"];
+
+          /* Build metric cells with editable spans */
+          function makeMetricCell(field) {
+            const val = effectiveValue(contributorId, idx, field, p[field]);
+            const td = document.createElement("td");
+            td.className = "num";
+
+            const span = document.createElement("span");
+            span.className = "editable-metric";
+            span.title = "Click to edit";
+            span.textContent = fmtOrDash(val);
+            span.dataset.field = field;
+            span.dataset.idx = idx;
+
+            span.addEventListener("click", () => {
+              /* Replace span with input */
+              const currentVal = effectiveValue(contributorId, idx, field, p[field]);
+              const input = document.createElement("input");
+              input.className = "metric-edit-input";
+              input.type = "number";
+              input.min = "0";
+              input.value = currentVal !== null ? String(currentVal) : "";
+              input.placeholder = "Enter value";
+
+              td.replaceChild(input, span);
+              input.focus();
+              input.select();
+
+              function commit() {
+                const raw = input.value.trim();
+                const newVal = raw === "" ? null : Math.max(0, Number(raw));
+                saveEdit(contributorId, idx, field, raw === "" ? "" : String(Math.max(0, Number(raw))));
+                span.textContent = fmtOrDash(newVal);
+                td.replaceChild(span, input);
+                refreshModalKPIs();
+              }
+
+              input.addEventListener("blur", commit);
+              input.addEventListener("keydown", e => {
+                if (e.key === "Enter")  { e.preventDefault(); commit(); }
+                if (e.key === "Escape") { td.replaceChild(span, input); }
+              });
+            });
+
+            td.appendChild(span);
+            return td;
+          }
+
+          tr.innerHTML = `
+            <td>${p.label}</td>
+            <td>${fmtDate(p.date)}</td>
+          `;
+
+          metricFields.forEach(field => tr.appendChild(makeMetricCell(field)));
+
+          /* LinkedIn URL + Open button */
+          const urlTd = document.createElement("td");
+          urlTd.innerHTML = `
+            <div class="td-url-wrap">
+              <input class="td-url-input" type="url" id="${urlId}"
+                placeholder="Paste URL…" value="${p.url || ''}" />
+              <button class="td-open-btn" id="${btnId}"
+                ${p.url ? '' : 'disabled'}
+                onclick="openPost('${urlId}')">Open →</button>
+            </div>
+          `;
+          tr.appendChild(urlTd);
+
+          /* Reviewed By dropdown */
+          const reviewTd = document.createElement("td");
+          reviewTd.innerHTML = `
+            <select class="td-reviewer-select" aria-label="Reviewed by for ${p.label}">
+              <option value="not-reviewed" selected>Not Reviewed</option>
+              <option value="daya">Daya</option>
+              <option value="phuong">Phuong</option>
+            </select>
+          `;
+          tr.appendChild(reviewTd);
+
+          /* Notes */
+          const notesTd = document.createElement("td");
+          notesTd.innerHTML = `
+            <input class="td-notes-input" type="text"
+              placeholder="Add notes…" aria-label="Notes for ${p.label}" />
+          `;
+          tr.appendChild(notesTd);
+
+          /* Wire URL input → enable/disable Open button */
+          const urlInput = tr.querySelector(`#${urlId}`);
+          const openBtn  = tr.querySelector(`#${btnId}`);
+          urlInput.addEventListener("input", () => {
+            openBtn.disabled = urlInput.value.trim() === "";
+          });
+
+          tbody.appendChild(tr);
+        });
+
+        table.appendChild(tbody);
+        wrap.appendChild(table);
+      }
+
+      /* Update profile card button states */
+      document.querySelectorAll(".view-posts-btn").forEach(btn => {
+        const isThis = Number(btn.dataset.contributorId) === contributorId;
+        btn.classList.toggle("active", isThis);
+        btn.setAttribute("aria-expanded", isThis ? "true" : "false");
+        btn.firstChild.textContent = isThis ? "Hide Posts " : "View Posts ";
+      });
+
+      /* Show the overlay */
+      document.getElementById("modal-overlay").classList.add("open");
+      document.body.style.overflow = "hidden";
+    }
+
+    function closeModal() {
+      document.getElementById("modal-overlay").classList.remove("open");
+      document.getElementById("modal-panel").innerHTML = "";
+      document.body.style.overflow = "";
+      state.openCardId = null;
+
+      /* Reset all View Posts buttons */
+      document.querySelectorAll(".view-posts-btn").forEach(btn => {
+        btn.classList.remove("active");
+        btn.setAttribute("aria-expanded", "false");
+        btn.firstChild.textContent = "View Posts ";
+      });
+    }
+
+
+    /* ═══════════════════════════════════════════════════════════════
+       VIEW SWITCHING
+    ═══════════════════════════════════════════════════════════════ */
+    function switchView(viewId) {
+      state.activeView = viewId;
+
+      /* Close the modal whenever switching away from Social Stars */
+      if (viewId !== "view-stars" && state.openCardId !== null) {
+        closeModal();
+      }
+
+      document.querySelectorAll(".view-btn").forEach(btn => {
+        const isActive = btn.getAttribute("aria-controls") === viewId;
+        btn.classList.toggle("active", isActive);
+        btn.setAttribute("aria-selected", isActive ? "true" : "false");
+      });
+
+      document.querySelectorAll(".view-section").forEach(section => {
+        section.classList.toggle("active", section.id === viewId);
+      });
+    }
+
+
+    /* ═══════════════════════════════════════════════════════════════
+       EVENT LISTENERS
+    ═══════════════════════════════════════════════════════════════ */
+
+    document.getElementById("btn-overview").addEventListener("click", () => switchView("view-overview"));
+    document.getElementById("btn-stars").addEventListener("click",   () => switchView("view-stars"));
+
+    /* Filter pills */
+    document.getElementById("filter-pills").addEventListener("click", e => {
+      const pill = e.target.closest(".filter-pill");
+      if (!pill) return;
+      state.activeFilter = pill.dataset.filter;
+      document.querySelectorAll(".filter-pill").forEach(p => {
+        p.classList.toggle("active", p.dataset.filter === state.activeFilter);
+      });
+      renderProfileCards();
+    });
+
+    document.getElementById("search-input").addEventListener("input", e => {
+      state.query = e.target.value.trim();
+      renderTable();
+    });
+
+    document.querySelectorAll("thead th[data-col]").forEach(th => {
+      th.addEventListener("click", () => {
+        const col = th.dataset.col;
+        if (state.sortCol === col) {
+          state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
+        } else {
+          state.sortCol = col;
+          state.sortDir = (col === "name" || col === "label" || col === "date") ? "asc" : "desc";
+        }
+        renderTable();
+      });
+    });
+
+    /*
+      "View Posts" button click — event delegation on the grid.
+      Reads the contributor ID from the button's data attribute
+      and passes it to openModal().
+    */
+    document.getElementById("profile-grid").addEventListener("click", e => {
+      const btn = e.target.closest(".view-posts-btn");
+      if (!btn) return;
+      openModal(Number(btn.dataset.contributorId));
+    });
+
+    /*
+      Clicking the dark backdrop (the overlay itself, not the panel)
+      closes the modal. The panel sits inside the overlay; clicks on
+      it do NOT bubble to the overlay because the panel covers it —
+      but we check the target anyway to be safe.
+    */
+    document.getElementById("modal-overlay").addEventListener("click", e => {
+      if (e.target === document.getElementById("modal-overlay")) {
+        closeModal();
+      }
+    });
+
+    /* Escape key closes the modal from anywhere on the page */
+    document.addEventListener("keydown", e => {
+      if (e.key === "Escape" && state.openCardId !== null) {
+        closeModal();
+      }
+    });
+
+
+    /* ═══════════════════════════════════════════════════════════════
+       INIT
+    ═══════════════════════════════════════════════════════════════ */
+    updateKPIs();
+    renderTable();
+    renderProfileCards();
+
+    document.getElementById("footer-date").textContent =
+      new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  </script>
+
+</body>
+</html>
